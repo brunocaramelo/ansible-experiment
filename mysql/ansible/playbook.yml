@@ -1,0 +1,58 @@
+---
+
+- name: Install MySQL
+  hosts: all
+  tasks:
+    - name: update yum
+      yum: name=* state=latest
+      ignore_errors: yes
+
+    - name: Ensure a list of packages installed
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - mariadb
+          - mariadb-server
+          - MySQL-python
+        state: present
+        update_cache: yes
+
+    - name: Configure my.cnf
+      copy: src=./files/my.cnf
+            dest=/etc/my.cnf
+            owner=root
+            group=root
+            mode=0640
+      become: yes
+      notify:
+        - restart mysql
+    
+#    - mysql_user:
+#        name: mysql_service
+#        password: passwordMysqlSecret
+#        priv: '*.*:ALL'
+#        state: present
+    
+#    - name: Add mysql-user
+#      mysql_user: name=mysql_service
+#                  password=passwordMysqlSecret
+#                  priv=*.*:ALL
+#                  state=present
+#      notify:
+#        - start mysql
+
+  handlers:
+    - name: start mariadb
+      service: name=mariadb
+               enabled=yes
+               state=started
+    - name: restart mariadb
+      service: name=mariadb
+               enabled=yes
+               state=restarted
+
+
+
+# /sbin/iptables -A INPUT -i eth0 -s 192.168.33.0/24 -p tcp --destination-port 3306 -j ACCEPT
+# service iptables save

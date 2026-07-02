@@ -1,0 +1,114 @@
+- name: "Build Resolve Site App Server"
+  hosts: all
+  become: true
+  gather_facts: no
+  tasks:
+       # EPEL installing
+    - name: update sytem.
+      raw: yum -y install epel-release yum-utils
+      changed_when: False
+      ignore_errors: yes
+
+    - name: Ensure a list of packages installed
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - oracle-php-release-el7
+        state: present
+        update_cache: yes
+
+    - name: Ensure a list of packages installed
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - mlocate
+          - bash-completion
+          - curl
+          - git
+          - gzip
+          - unzip
+          - wget
+          - zip
+          - php-cli
+          - php-fpm
+          - php-curl
+          - php-dom
+          - php-exif
+          - php-fileinfo
+          - php-ftp
+          - php-gd
+          - php-json
+          - php-mbstring
+          - php-mysql
+          - php-mysqli
+          - php-pdo
+          - php-simplexml
+          - php-xml
+          - php-xmlrpc
+          - php-xmlwriter
+          - php-zip
+          - php-fpm
+          - php-bz2
+          - php-sqlite3
+          - php-bcmath
+          - php-redis
+          - httpd
+          - deltarpm
+          - nodejs
+        state: present
+        update_cache: yes
+
+    - name: Download Composer
+      copy: src=./dep/composer_installer
+            dest=/tmp/composer_installer
+            mode=077
+    
+    - name: COMPOSER> install
+      shell: cat /tmp/composer_installer | php -- --install-dir=/usr/bin
+      args:
+        creates: /usr/bin/composer
+      tags: composer
+    - name: COMPOSER> rename composer.phar to composer
+      shell: mv /usr/bin/composer.phar /usr/bin/composer
+      args:
+        creates: /usr/bin/composer
+      tags: composer
+    - name: COMPOSER> make composer executable
+      file:
+        path: /usr/bin/composer
+        mode: a+x
+        state: file
+      tags: composer
+
+    # PHP SEDS OF PHP INI
+    - name: Alteracoes no PHP ini 
+      shell: >
+        sed -i "s/max_execution_time = 30/max_execution_time = 120/" /etc/php.ini && \
+        sed -i "s/max_input_time = 60/max_input_time = 120/" /etc/php.ini && \
+        sed -i "s/memory_limit = 128M/memory_limit = 2048M/" /etc/php.ini && \
+        sed -i "s/post_max_size = 8M/post_max_size = 1024M/" /etc/php.ini && \
+        sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 1024M/" /etc/php.ini
+    
+    # Desliga o Selinux
+    - name: Disable SELinux
+      selinux: state=disabled
+
+  handlers:
+  - name: start httpd
+    service: name=httpd
+              enabled=yes
+              state=started
+  - name: restart httpd
+    service: name=httpd
+              enabled=yes
+              state=restarted
+  - name: start fpm
+    service: name=php-fpm
+              enabled=yes
+              state=started
+  - name: restart php-fpm
+    service: name=php-fpm
+              enabled=yes
+              state=restarted

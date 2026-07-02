@@ -1,0 +1,57 @@
+#VERSION: 0.0.3
+
+---
+- hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+  - name: update yum
+    yum: name=* state=latest
+    ignore_errors: yes
+
+  - name: Ensure a list of packages installed
+    yum:
+      name: "{{ packages }}"
+    vars:
+      packages:
+        - redis
+      state: present
+      update_cache: yes
+
+  - name: create redis group
+    group: name=redis state=present system=yes
+
+  - name: create redis user
+    user: name=redis group=redis createhome=no shell=/bin/false system=yes state=present
+
+  - name: make sure that /etc/redis exists
+    file: path=/etc/redis state=directory mode=0755
+
+  - name: make sure that /var/db/redis exists
+    file: path=/var/db/redis state=directory mode=0755 group=redis owner=redis
+
+  - name: make sure redis.log file exists
+    copy: src=templates/redis.log dest=/var/log/redis.log owner=redis group=redis mode=0644
+
+  - name: copy redis.conf file
+    copy: src=templates/redis.conf dest=/etc/redis.conf group=redis owner=redis
+
+  - name: copy custom template
+    template: src=templates/redis.local.conf.j2 dest=/etc/redis/redis.local.conf group=redis owner=redis
+
+  - name: copy redis-local script
+    template: src=templates/redis-local.j2 dest=/usr/local/bin/redis-local mode=0755
+  
+  handlers:
+    - name: start redis
+      service: name=redis
+               enabled=yes
+               state=started
+    - name: restart redis
+      service: name=redis
+               enabled=yes
+               state=restarted
+
+
